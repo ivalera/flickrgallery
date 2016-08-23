@@ -1,12 +1,17 @@
 package ru.valera.flickrgallery.model;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * Created by Android on 22.08.2016.
  */
 public class GalleryItem {
 
+    @SerializedName("title")
     private String caption;
+    @SerializedName("id")
     private String id;
+    @SerializedName("url_s")
     private String url;
 
     public String getCaption() {
