@@ -1,7 +1,11 @@
 package ru.valera.flickrgallery.ui.fragments;
 
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -10,13 +14,14 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
-import android.widget.TextView;
+import android.widget.ImageView;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import ru.valera.flickrgallery.FlickrFetchr;
 import ru.valera.flickrgallery.R;
+import ru.valera.flickrgallery.ThumbnailDownloader;
 import ru.valera.flickrgallery.model.GalleryItem;
 
 /**
@@ -28,6 +33,7 @@ public class PhotoGalleryFragment extends Fragment{
     private static final int COL_WIDTH = 300;
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
+    private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
 
     private int numPage = 1;
 
@@ -42,10 +48,23 @@ public class PhotoGalleryFragment extends Fragment{
         // новых объектов AsynkTask для загрузки JSON
         setRetainInstance(true);
         new FetchItemTask().execute();
+
+        Handler responseHandler = new Handler();
+        // создание нового потока
+        mThumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
+        mThumbnailDownloader.setThumbnailDownloaderListener(new ThumbnailDownloader.ThumbnailDownloaderListener<PhotoHolder>() {
+            @Override
+            public void onThumbnailDownloader(PhotoHolder photoHolder, Bitmap bitmap) {
+                Drawable drawable = new BitmapDrawable(getResources(), bitmap);
+                photoHolder.bindDrawable(drawable);
+            }
+        });
+        mThumbnailDownloader.start();
+        mThumbnailDownloader.getLooper();
+        Log.i(TAG, "Background thread started");
     }
 
     // для прорисовки пользовательского интерфейса
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
@@ -80,6 +99,20 @@ public class PhotoGalleryFragment extends Fragment{
 
         return v;
     }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        mThumbnailDownloader.clearQueue();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mThumbnailDownloader.quit();
+        Log.i(TAG, "Background thread destroyed");
+
+    }
     // проверяет текущее сосотеяние модели (List<GalleryItem>)
     // и соответствующим образом настраиваем адаптер для RecyclerView
     private void setupAdapter(){
@@ -91,15 +124,22 @@ public class PhotoGalleryFragment extends Fragment{
 
     // ViewHolder класс хранящий ссылки на виджеты
     private class PhotoHolder extends RecyclerView.ViewHolder{
-        private TextView titleTextView;
+        //private TextView titleTextView;
+        ImageView mItemImageView;
 
         public PhotoHolder(View itemView){
             super(itemView);
-            titleTextView = (TextView) itemView;
+            //titleTextView = (TextView) itemView;
+            mItemImageView = (ImageView)itemView
+                    .findViewById(R.id.fragment_photo_gallery_image_view);
         }
 
-        public void bindGalleryItem(GalleryItem item){
+        /*public void bindGalleryItem(GalleryItem item){
             titleTextView.setText(item.toString());
+        }*/
+
+        public void bindDrawable(Drawable drawable){
+            mItemImageView.setImageDrawable(drawable);
         }
     }
     // Adapter
@@ -112,15 +152,23 @@ public class PhotoGalleryFragment extends Fragment{
         }
         // Создание новых View и ViewHolder элемента списка, которые впоследствии могут переиспользоваться
         @Override
-        public PhotoHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            TextView textView = new TextView(getActivity());
-            return new PhotoHolder(textView);
+        public PhotoHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
+            /*TextView textView = new TextView(getActivity());
+            return new PhotoHolder(textView);*/
+            LayoutInflater inflater = LayoutInflater.from(getActivity());
+            View view = inflater.inflate(R.layout.gallery_item, viewGroup, false);
+            return new PhotoHolder(view);
         }
         // Заполнение виджетов View данными
         @Override
         public void onBindViewHolder(PhotoHolder photoHolder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
-            photoHolder.bindGalleryItem(galleryItem);
+            //photoHolder.bindGalleryItem(galleryItem);
+            Drawable placeholder = getResources().getDrawable(R.drawable.loading_image);
+            photoHolder.bindDrawable(placeholder);
+
+            mThumbnailDownloader.queueThumbnail(photoHolder, galleryItem.getUrl());
+
             lastBoundPosition = position;
             Log.i(TAG,"Last bound position is " + Integer.toString(lastBoundPosition));
         }
