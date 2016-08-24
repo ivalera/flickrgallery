@@ -104,6 +104,7 @@ public class PhotoGalleryFragment extends Fragment{
     public void onDestroyView() {
         super.onDestroyView();
         mThumbnailDownloader.clearQueue();
+        mThumbnailDownloader.clearCache();
     }
 
     @Override
@@ -163,14 +164,40 @@ public class PhotoGalleryFragment extends Fragment{
         @Override
         public void onBindViewHolder(PhotoHolder photoHolder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
-            //photoHolder.bindGalleryItem(galleryItem);
-            Drawable placeholder = getResources().getDrawable(R.drawable.loading_image);
-            photoHolder.bindDrawable(placeholder);
+            Bitmap bitmap = mThumbnailDownloader.getCachedImage(galleryItem.getUrl());
 
-            mThumbnailDownloader.queueThumbnail(photoHolder, galleryItem.getUrl());
+            if (bitmap == null) {
+                Drawable drawable = getResources().getDrawable(R.drawable.loading_image);
+                photoHolder.bindDrawable(drawable);
+                mThumbnailDownloader.queueThumbnail(photoHolder, galleryItem.getUrl());
+            } else {
+                Log.i(TAG, "Loaded image from cache");
+                photoHolder.bindDrawable(new BitmapDrawable(getResources(), bitmap));
+            }
+
+            //Now preload the previous and next 10 images
+            preloadAdjacentImages(position);
 
             lastBoundPosition = position;
             Log.i(TAG,"Last bound position is " + Integer.toString(lastBoundPosition));
+        }
+
+        private void preloadAdjacentImages(int position) {
+            final int imageBufferSize = 10; //Number of images before & after position to cache
+
+            //Set the Indexes for the images to preload
+            int startIndex = Math.max(position - imageBufferSize, 0); //Starting index must be >= 0
+            int endIndex = Math.min(position + imageBufferSize, mGalleryItems.size() - 1); //Ending index must be <= number of galleryItems - 1
+
+            //Loop over mGallery items using our index bounds
+            for (int i = startIndex; i <= endIndex; i++) {
+                //We don't need to preload the "current" item, as it is being
+                //displayed already.
+                if (i == position) continue;
+
+                String url = mGalleryItems.get(i).getUrl();
+                mThumbnailDownloader.preloadImage(url);
+            }
         }
 
         @Override
