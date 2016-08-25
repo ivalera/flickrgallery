@@ -1,11 +1,8 @@
 package ru.valera.flickrgallery.ui.fragments;
 
-import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -15,6 +12,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
+
+import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,10 +29,11 @@ import ru.valera.flickrgallery.model.GalleryItem;
 public class PhotoGalleryFragment extends Fragment{
 
     private static final String TAG = "PhotoGalleryFragment";
-    private static final int COL_WIDTH = 300;
+    private static final int COL_WIDTH = 360;
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
     private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
+    private int columnResize;
 
     private int numPage = 1;
 
@@ -49,8 +49,8 @@ public class PhotoGalleryFragment extends Fragment{
         setRetainInstance(true);
         new FetchItemTask().execute();
 
-        Handler responseHandler = new Handler();
-        // создание нового потока
+       /* Handler responseHandler = new Handler();
+        // создание нового потока для загрузки изображения
         mThumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
         mThumbnailDownloader.setThumbnailDownloaderListener(new ThumbnailDownloader.ThumbnailDownloaderListener<PhotoHolder>() {
             @Override
@@ -61,7 +61,7 @@ public class PhotoGalleryFragment extends Fragment{
         });
         mThumbnailDownloader.start();
         mThumbnailDownloader.getLooper();
-        Log.i(TAG, "Background thread started");
+        Log.i(TAG, "Background thread started");*/
     }
 
     // для прорисовки пользовательского интерфейса
@@ -88,9 +88,10 @@ public class PhotoGalleryFragment extends Fragment{
                 new ViewTreeObserver.OnGlobalLayoutListener() {
                     @Override
                     public void onGlobalLayout() {
-                        int numColumns = mPhotoRecyclerView.getWidth() / COL_WIDTH;
+                        columnResize = mPhotoRecyclerView.getWidth() / 3;
+                        Log.e("Wight", String.valueOf(columnResize));
                         GridLayoutManager layoutManager = (GridLayoutManager)mPhotoRecyclerView.getLayoutManager();
-                        layoutManager.setSpanCount(numColumns);
+                        layoutManager.setSpanCount(3);
                     }
                 }
         );
@@ -103,13 +104,13 @@ public class PhotoGalleryFragment extends Fragment{
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        mThumbnailDownloader.clearQueue();
+        //mThumbnailDownloader.clearQueue();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mThumbnailDownloader.quit();
+        //mThumbnailDownloader.quit();
         Log.i(TAG, "Background thread destroyed");
 
     }
@@ -124,19 +125,22 @@ public class PhotoGalleryFragment extends Fragment{
 
     // ViewHolder класс хранящий ссылки на виджеты
     private class PhotoHolder extends RecyclerView.ViewHolder{
-        //private TextView titleTextView;
         ImageView mItemImageView;
 
         public PhotoHolder(View itemView){
             super(itemView);
-            //titleTextView = (TextView) itemView;
             mItemImageView = (ImageView)itemView
                     .findViewById(R.id.fragment_photo_gallery_image_view);
+            mItemImageView.getLayoutParams().height = columnResize;
         }
 
-        /*public void bindGalleryItem(GalleryItem item){
-            titleTextView.setText(item.toString());
-        }*/
+        // Заргузчик изображения Picasso
+        public void bindGalleryItem(GalleryItem galleryItem){
+            Picasso.with(getActivity()).
+                    load(galleryItem.getUrl())
+                    .placeholder(R.drawable.loading_image)
+                    .into(mItemImageView);
+        }
 
         public void bindDrawable(Drawable drawable){
             mItemImageView.setImageDrawable(drawable);
@@ -153,8 +157,6 @@ public class PhotoGalleryFragment extends Fragment{
         // Создание новых View и ViewHolder элемента списка, которые впоследствии могут переиспользоваться
         @Override
         public PhotoHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
-            /*TextView textView = new TextView(getActivity());
-            return new PhotoHolder(textView);*/
             LayoutInflater inflater = LayoutInflater.from(getActivity());
             View view = inflater.inflate(R.layout.gallery_item, viewGroup, false);
             return new PhotoHolder(view);
@@ -163,11 +165,13 @@ public class PhotoGalleryFragment extends Fragment{
         @Override
         public void onBindViewHolder(PhotoHolder photoHolder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
-            //photoHolder.bindGalleryItem(galleryItem);
-            Drawable placeholder = getResources().getDrawable(R.drawable.loading_image);
-            photoHolder.bindDrawable(placeholder);
+            photoHolder.bindGalleryItem(galleryItem);
 
-            mThumbnailDownloader.queueThumbnail(photoHolder, galleryItem.getUrl());
+
+           /* Drawable placeholder = getResources().getDrawable(R.drawable.loading_image);
+            photoHolder.bindDrawable(placeholder);*/
+
+            //mThumbnailDownloader.queueThumbnail(photoHolder, galleryItem.getUrl());
 
             lastBoundPosition = position;
             Log.i(TAG,"Last bound position is " + Integer.toString(lastBoundPosition));
