@@ -89,7 +89,7 @@ public class PhotoGalleryFragment extends Fragment{
                     @Override
                     public void onGlobalLayout() {
                         columnResize = mPhotoRecyclerView.getWidth() / 3;
-                        Log.e("Wight", String.valueOf(columnResize));
+                        Log.e("Width", String.valueOf(columnResize));
                         GridLayoutManager layoutManager = (GridLayoutManager)mPhotoRecyclerView.getLayoutManager();
                         layoutManager.setSpanCount(3);
                     }
