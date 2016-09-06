@@ -6,8 +6,12 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SearchView;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -19,8 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ru.valera.flickrgallery.FlickrFetchr;
+import ru.valera.flickrgallery.QueryPreferences;
 import ru.valera.flickrgallery.R;
-import ru.valera.flickrgallery.ThumbnailDownloader;
 import ru.valera.flickrgallery.model.GalleryItem;
 
 /**
@@ -32,10 +36,9 @@ public class PhotoGalleryFragment extends Fragment{
     private static final int COL_WIDTH = 360;
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
-    private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
+    // !
+    //private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
     private int columnResize;
-
-    private int numPage = 1;
 
     public static PhotoGalleryFragment newInstance(){
         return new PhotoGalleryFragment();
@@ -47,8 +50,11 @@ public class PhotoGalleryFragment extends Fragment{
         // удеживает фрагмент, чтобы поворот экрана не приводил к многократному порождению
         // новых объектов AsynkTask для загрузки JSON
         setRetainInstance(true);
-        new FetchItemTask().execute();
+        // чтобы зарегестрировать фрагмент для получения обратных вызовов меню
+        setHasOptionsMenu(true);
+        updateItems();
 
+        // !
        /* Handler responseHandler = new Handler();
         // создание нового потока для загрузки изображения
         mThumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
@@ -60,8 +66,8 @@ public class PhotoGalleryFragment extends Fragment{
             }
         });
         mThumbnailDownloader.start();
-        mThumbnailDownloader.getLooper();
-        Log.i(TAG, "Background thread started");*/
+        mThumbnailDownloader.getLooper();*/
+        Log.i(TAG, "Background thread started");
     }
 
     // для прорисовки пользовательского интерфейса
@@ -78,7 +84,6 @@ public class PhotoGalleryFragment extends Fragment{
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
                 if(!recyclerView.canScrollVertically(1)){
-                    numPage++;
                     new FetchItemTask().execute();
                 }
             }
@@ -102,18 +107,71 @@ public class PhotoGalleryFragment extends Fragment{
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    @Override
     public void onDestroyView() {
         super.onDestroyView();
+        // !
         //mThumbnailDownloader.clearQueue();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        // !
         //mThumbnailDownloader.quit();
         Log.i(TAG, "Background thread destroyed");
 
     }
+
+    // меню
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater menuInflater) {
+        super.onCreateOptionsMenu(menu, menuInflater);
+        menuInflater.inflate(R.menu.fragment_photo_gallery, menu);
+
+        MenuItem searchItem = menu.findItem(R.id.menu_item_search);
+        final SearchView searchView = (SearchView) searchItem.getActionView(); // получаем SearchView
+
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+
+            // выполняется при отправке запроса пользователем
+            @Override
+            public boolean onQueryTextSubmit(String s) {
+                Log.d(TAG, "QueryTextSubmit:" + s);
+                QueryPreferences.setStoreQuery(getActivity(), s);
+                updateItems();
+                return true;
+            }
+
+            // вызывается при любом изменении текста в текстовои поле SearchView 490
+            @Override
+            public boolean onQueryTextChange(String s) {
+                Log.d(TAG, "QueryTextChange:" + s);
+                return false;
+            }
+        });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.menu_item_clear:
+                QueryPreferences.setStoreQuery(getActivity(), null);
+                updateItems();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void updateItems(){
+        new FetchItemTask().execute();
+    }
+
     // проверяет текущее сосотеяние модели (List<GalleryItem>)
     // и соответствующим образом настраиваем адаптер для RecyclerView
     private void setupAdapter(){
@@ -167,7 +225,7 @@ public class PhotoGalleryFragment extends Fragment{
             GalleryItem galleryItem = mGalleryItems.get(position);
             photoHolder.bindGalleryItem(galleryItem);
 
-
+            // !
            /* Drawable placeholder = getResources().getDrawable(R.drawable.loading_image);
             photoHolder.bindDrawable(placeholder);*/
 
@@ -187,7 +245,13 @@ public class PhotoGalleryFragment extends Fragment{
 
         @Override
         protected List<GalleryItem> doInBackground(Void... params) {
-            return new FlickrFetchr().fetchItems(numPage);
+            String query = "robot";
+
+            if(query == null){
+                return new FlickrFetchr().fetchRecentPhotos();
+            }else {
+                return new FlickrFetchr().searchPhotos(query);
+            }
         }
 
         @Override

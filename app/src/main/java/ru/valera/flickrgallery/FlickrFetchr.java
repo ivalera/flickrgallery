@@ -31,6 +31,16 @@ public class FlickrFetchr {
     private static final String TAG = "FlickrFetchr";
     private static final String API__KEY = "16f62924b491f9482441731f7a89e6e1";
 
+    private static final String FETCH_RECENTS_METHOD = "flickr.photos.getRecent";
+    private static final String SEARCH_METHOD = "flickr.photos.search";
+    private static final Uri ENDPOINT = Uri
+            .parse("https://api.flickr.com/services/rest/")
+            .buildUpon() // urlbuilder для пострения полного URL-адреса для API-запроса
+            .appendQueryParameter("api_key", API__KEY)
+            .appendQueryParameter("format", "json")
+            .appendQueryParameter("nojsoncallback", "1")
+            .appendQueryParameter("extras", "url_s")
+            .build();
 
     public byte[] getUrlBytes(String urlSpec) throws IOException {
 
@@ -65,21 +75,23 @@ public class FlickrFetchr {
     public String getUrlsString(String urlSpec) throws IOException {
         return new String(getUrlBytes(urlSpec));
     }
+
+    // для получения последних фотографий
+    public List<GalleryItem> fetchRecentPhotos(){
+        String url = buildUrl(FETCH_RECENTS_METHOD, null);
+        return downloadGalleryItems(url);
+    }
+
+    // для поиска фотографий
+    public List<GalleryItem> searchPhotos(String query){
+        String url = buildUrl(SEARCH_METHOD, query);
+        return downloadGalleryItems(url);
+    }
+
     // параметр page для страниц
-    public List<GalleryItem> fetchItems(int numPage) {
-
+    private List<GalleryItem> downloadGalleryItems(String url) {
         List<GalleryItem> items = new ArrayList<>();
-
         try {
-            // urlbuilder для пострения полного URL-адреса для API-запроса
-            String url = Uri.parse("https://api.flickr.com/services/rest/")
-                    .buildUpon()
-                    .appendQueryParameter("method", "flickr.photos.getRecent")
-                    .appendQueryParameter("api_key", API__KEY)
-                    .appendQueryParameter("format", "json")
-                    .appendQueryParameter("nojsoncallback", "1")
-                    .appendQueryParameter("extras", "url_s")
-                    .build().toString();
             String jsonString = getUrlsString(url);
             Log.i(TAG, "Received JSON: " + jsonString);
             // JSONObject разбирает переданную строку JSON и строит иерархию объетков,
@@ -94,6 +106,16 @@ public class FlickrFetchr {
 
         }
         return items;
+    }
+
+    // для построения URL-адреса по значениям метода и запроса
+    private String buildUrl(String method, String query){
+        Uri.Builder uriBuilder = ENDPOINT.buildUpon()
+                .appendQueryParameter("method", method);
+        if(method.equals(SEARCH_METHOD)){
+            uriBuilder.appendQueryParameter("text", query);
+        }
+        return uriBuilder.build().toString();
     }
 
     private void parseItems(List<GalleryItem> items, JSONObject jsonBody)
