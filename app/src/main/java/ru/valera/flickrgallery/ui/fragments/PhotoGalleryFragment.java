@@ -18,6 +18,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 
 import com.squareup.picasso.Picasso;
 
@@ -39,6 +40,8 @@ public class PhotoGalleryFragment extends Fragment{
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
     private MenuItem searchItem;
+    private ProgressBar progressBar;
+
     // !
     //private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
     private int columnResize;
@@ -77,6 +80,9 @@ public class PhotoGalleryFragment extends Fragment{
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
+
+        progressBar = (ProgressBar) v.findViewById(R.id.fragment_progress_bar);
+        showProgressBar(true);
 
         mPhotoRecyclerView = (RecyclerView)v.findViewById(R.id.fragment_photo_gallery_recycler_view);
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
@@ -176,15 +182,6 @@ public class PhotoGalleryFragment extends Fragment{
 
     }
 
-    public void collapseSearchView() {
-        searchItem.collapseActionView();  // collapse the action view
-        View view = getActivity().getCurrentFocus();  // hide the soft keyboard
-        if (view != null) {
-            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-        }
-    }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -199,7 +196,7 @@ public class PhotoGalleryFragment extends Fragment{
 
     private void updateItems(){
         String query = QueryPreferences.getStoreQuery(getActivity());
-        new FetchItemTask(query).execute();
+        new FetchItemTask(query, this).execute();
     }
 
     // проверяет текущее сосотеяние модели (List<GalleryItem>)
@@ -274,15 +271,16 @@ public class PhotoGalleryFragment extends Fragment{
     public class FetchItemTask extends AsyncTask<Void, Void, List<GalleryItem>> {
 
         public String mQuery;
+        private PhotoGalleryFragment galleryFragment;
 
-        public FetchItemTask(String query){
+        public FetchItemTask(String query, PhotoGalleryFragment fragment){
             mQuery = query;
+            galleryFragment = fragment;
         }
 
         @Override
         protected List<GalleryItem> doInBackground(Void... params) {
             //String query = "robot";
-
             if(mQuery == null){
                 return new FlickrFetchr().fetchRecentPhotos();
             }else {
@@ -291,9 +289,39 @@ public class PhotoGalleryFragment extends Fragment{
         }
 
         @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            if(galleryFragment.isResumed()){
+                galleryFragment.showProgressBar(true);
+            }
+        }
+
+        @Override
         protected void onPostExecute(List<GalleryItem> galleryItems) {
             mItems = galleryItems;
             setupAdapter();
+            galleryFragment.showProgressBar(false);
+        }
+    }
+
+    public void collapseSearchView() {
+        searchItem.collapseActionView();  // collapse the action view
+        View view = getActivity().getCurrentFocus();  // hide the soft keyboard
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
+    }
+
+    public void showProgressBar(boolean isShow){
+        if(isShow){
+            progressBar.setVisibility(View.VISIBLE);
+            if(mPhotoRecyclerView!=null) {
+                mPhotoRecyclerView.setVisibility(View.INVISIBLE);
+            }
+        }else {
+            progressBar.setVisibility(View.INVISIBLE);
+            mPhotoRecyclerView.setVisibility(View.VISIBLE);
         }
     }
 }
