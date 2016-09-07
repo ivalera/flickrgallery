@@ -1,5 +1,6 @@
 package ru.valera.flickrgallery.ui.fragments;
 
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
 
 import com.squareup.picasso.Picasso;
@@ -36,6 +38,7 @@ public class PhotoGalleryFragment extends Fragment{
     private static final int COL_WIDTH = 360;
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
+    private MenuItem searchItem;
     // !
     //private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
     private int columnResize;
@@ -84,7 +87,8 @@ public class PhotoGalleryFragment extends Fragment{
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
                 if(!recyclerView.canScrollVertically(1)){
-                    new FetchItemTask().execute();
+                    //new FetchItemTask().execute();
+                    updateItems();
                 }
             }
         });
@@ -95,7 +99,7 @@ public class PhotoGalleryFragment extends Fragment{
                     public void onGlobalLayout() {
                         columnResize = mPhotoRecyclerView.getWidth() / 3;
                         Log.e("Width", String.valueOf(columnResize));
-                        GridLayoutManager layoutManager = (GridLayoutManager)mPhotoRecyclerView.getLayoutManager();
+                        GridLayoutManager layoutManager = (GridLayoutManager) mPhotoRecyclerView.getLayoutManager();
                         layoutManager.setSpanCount(3);
                     }
                 }
@@ -133,7 +137,7 @@ public class PhotoGalleryFragment extends Fragment{
         super.onCreateOptionsMenu(menu, menuInflater);
         menuInflater.inflate(R.menu.fragment_photo_gallery, menu);
 
-        MenuItem searchItem = menu.findItem(R.id.menu_item_search);
+        searchItem = menu.findItem(R.id.menu_item_search);
         final SearchView searchView = (SearchView) searchItem.getActionView(); // получаем SearchView
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
@@ -143,17 +147,42 @@ public class PhotoGalleryFragment extends Fragment{
             public boolean onQueryTextSubmit(String s) {
                 Log.d(TAG, "QueryTextSubmit:" + s);
                 QueryPreferences.setStoreQuery(getActivity(), s);
+
+                collapseSearchView();
+
                 updateItems();
                 return true;
             }
 
-            // вызывается при любом изменении текста в текстовои поле SearchView 490
+            // вызывается при любом изменении текста в текстовои поле SearchView
             @Override
             public boolean onQueryTextChange(String s) {
                 Log.d(TAG, "QueryTextChange:" + s);
                 return false;
             }
         });
+
+        searchView.setOnSearchClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view) {
+                String query = QueryPreferences.getStoreQuery(getActivity());
+                searchView.setQuery(query, false);
+                //searchView.setInputType(InputType.TYPE_NULL); после нажатия ввода, блокируется ввод текста
+               //hideSoftKeyboard(getActivity());
+                //searchView.clearFocus();
+
+            }
+        });
+
+    }
+
+    public void collapseSearchView() {
+        searchItem.collapseActionView();  // collapse the action view
+        View view = getActivity().getCurrentFocus();  // hide the soft keyboard
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
     }
 
     @Override
@@ -169,7 +198,8 @@ public class PhotoGalleryFragment extends Fragment{
     }
 
     private void updateItems(){
-        new FetchItemTask().execute();
+        String query = QueryPreferences.getStoreQuery(getActivity());
+        new FetchItemTask(query).execute();
     }
 
     // проверяет текущее сосотеяние модели (List<GalleryItem>)
@@ -243,14 +273,20 @@ public class PhotoGalleryFragment extends Fragment{
 
     public class FetchItemTask extends AsyncTask<Void, Void, List<GalleryItem>> {
 
+        public String mQuery;
+
+        public FetchItemTask(String query){
+            mQuery = query;
+        }
+
         @Override
         protected List<GalleryItem> doInBackground(Void... params) {
-            String query = "robot";
+            //String query = "robot";
 
-            if(query == null){
+            if(mQuery == null){
                 return new FlickrFetchr().fetchRecentPhotos();
             }else {
-                return new FlickrFetchr().searchPhotos(query);
+                return new FlickrFetchr().searchPhotos(mQuery);
             }
         }
 
