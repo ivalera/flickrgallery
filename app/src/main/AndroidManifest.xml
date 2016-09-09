@@ -3,10 +3,11 @@
           package="ru.valera.flickrgallery">
 
     <uses-permission android:name="android.permission.INTERNET"></uses-permission>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"></uses-permission>
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_insert_photo_black_48dp"
+        android:icon="@drawable/ic_filter_hdr_white"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
@@ -17,6 +18,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <service android:name=".service.PollService"/>
     </application>
 
 </manifest>

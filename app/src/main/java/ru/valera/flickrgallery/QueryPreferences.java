@@ -8,6 +8,7 @@ import android.preference.PreferenceManager;
  */
 public class QueryPreferences {
     private static final String PREF_SEARCH_QUERY = "searchQuery"; // используется в качестве ключа для хранения запроса
+    private static final String PREF_LATS_RESULT_ID = "lastResultId";
 
     // возвращает занчание запроса, хранящиеся в общих настройках
     public static String getStoreQuery(Context context){
@@ -21,6 +22,18 @@ public class QueryPreferences {
         PreferenceManager.getDefaultSharedPreferences(context)
                 .edit()
                 .putString(PREF_SEARCH_QUERY, query)
+                .apply();
+    }
+
+    public static String getLastResultId(Context context){
+        return PreferenceManager.getDefaultSharedPreferences(context)
+                .getString(PREF_LATS_RESULT_ID ,null);
+    }
+
+    public static void setLastResultId(Context context, String lastResultId){
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putString(PREF_LATS_RESULT_ID ,lastResultId)
                 .apply();
     }
 }

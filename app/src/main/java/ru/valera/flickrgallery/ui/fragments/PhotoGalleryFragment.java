@@ -29,6 +29,7 @@ import ru.valera.flickrgallery.FlickrFetchr;
 import ru.valera.flickrgallery.QueryPreferences;
 import ru.valera.flickrgallery.R;
 import ru.valera.flickrgallery.model.GalleryItem;
+import ru.valera.flickrgallery.service.PollService;
 
 /**
  * Created by Valera on 22.08.2016.
@@ -59,6 +60,11 @@ public class PhotoGalleryFragment extends Fragment{
         // чтобы зарегестрировать фрагмент для получения обратных вызовов меню
         setHasOptionsMenu(true);
         updateItems();
+
+        /*Intent intent = PollService.newIntent(getActivity());
+        getActivity().startService(intent);*/
+
+        //PollService.setServiceAlarm(getActivity(), true);
 
         // !
        /* Handler responseHandler = new Handler();
@@ -180,6 +186,12 @@ public class PhotoGalleryFragment extends Fragment{
             }
         });
 
+        MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
+        if(PollService.isServiceAlarmOn(getActivity())){
+            toggleItem.setTitle(R.string.stop_polling);
+        }else {
+            toggleItem.setTitle(R.string.start_polling);
+        }
     }
 
     @Override
@@ -188,6 +200,11 @@ public class PhotoGalleryFragment extends Fragment{
             case R.id.menu_item_clear:
                 QueryPreferences.setStoreQuery(getActivity(), null);
                 updateItems();
+                return true;
+            case  R.id.menu_item_toggle_polling:
+                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+                PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                getActivity().invalidateOptionsMenu();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
